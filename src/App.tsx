@@ -1,5 +1,4 @@
-import React from 'react';
-import VideoEditor from './components/VideoEditor/VideoEditor';
+import VideoEditor from './components/VideoEditor';
 import './App.css';
 
 function App() {

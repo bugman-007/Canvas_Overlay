@@ -48,8 +48,10 @@ const CanvasOverlay: React.FC<CanvasOverlayProps> = ({
         preserveObjectStacking: true,
       });
 
+      canvas.freeDrawingBrush = new fabric.PencilBrush(canvas); // ✅ required for freehand
+
       fabricCanvasRef.current = canvas;
-      
+
       // Set initial dimensions
       canvas.setDimensions(canvasDimensions);
 
@@ -66,10 +68,10 @@ const CanvasOverlay: React.FC<CanvasOverlayProps> = ({
       const updateCanvasPosition = () => {
         const videoRect = videoElement.getBoundingClientRect();
         const canvas = fabricCanvasRef.current;
-        
+
         if (!canvas || videoRect.width === 0 || videoRect.height === 0) return;
 
-        // Set canvas dimensions to match video display size
+        // Update dimensions
         setCanvasDimensions({
           width: videoRect.width,
           height: videoRect.height,
@@ -80,30 +82,59 @@ const CanvasOverlay: React.FC<CanvasOverlayProps> = ({
           height: videoRect.height,
         });
 
-        // Position canvas exactly over video
-        if (canvasRef.current) {
-          canvasRef.current.style.position = 'absolute';
-          canvasRef.current.style.left = `${videoRect.left}px`;
-          canvasRef.current.style.top = `${videoRect.top - videoElement.parentElement!.getBoundingClientRect().top}px`;
+        // Sync canvas wrapper styles
+        const wrapperEl = canvas.wrapperEl;
+        const offsetTop =
+          videoRect.top -
+          videoElement.parentElement!.getBoundingClientRect().top;
+
+        if (wrapperEl) {
+          wrapperEl.style.position = "absolute";
+          wrapperEl.style.left = `${videoRect.left}px`;
+          wrapperEl.style.top = `${offsetTop}px`;
+          wrapperEl.style.width = `${videoRect.width}px`;
+          wrapperEl.style.height = `${videoRect.height}px`;
+          wrapperEl.style.pointerEvents = "none"; // optional: disables all fabric mouse events
+        }
+
+        // Ensure upper/lower canvas layers match
+        if (canvas.upperCanvasEl) {
+          const upper = canvas.upperCanvasEl;
+          upper.style.position = "absolute";
+          upper.style.left = "0px";
+          upper.style.top = "0px";
+          upper.style.width = `${videoRect.width}px`;
+          upper.style.height = `${videoRect.height}px`;
+          upper.style.pointerEvents = isVideoPaused ? "auto" : "none";
+        }
+
+        if (canvas.lowerCanvasEl) {
+          const lower = canvas.lowerCanvasEl;
+          lower.style.position = "absolute";
+          lower.style.left = "0px";
+          lower.style.top = "0px";
+          lower.style.width = `${videoRect.width}px`;
+          lower.style.height = `${videoRect.height}px`;
         }
       };
 
-      // Update on various events
       updateCanvasPosition();
       videoElement.addEventListener("loadedmetadata", updateCanvasPosition);
       window.addEventListener("resize", updateCanvasPosition);
 
-      // Use ResizeObserver if available
       const resizeObserver = new ResizeObserver(updateCanvasPosition);
       resizeObserver.observe(videoElement);
 
       return () => {
-        videoElement.removeEventListener("loadedmetadata", updateCanvasPosition);
+        videoElement.removeEventListener(
+          "loadedmetadata",
+          updateCanvasPosition
+        );
         window.removeEventListener("resize", updateCanvasPosition);
         resizeObserver.disconnect();
       };
     }
-  }, [videoElement]);
+  }, [videoElement, isVideoPaused]);
 
   // Enable/disable canvas interaction based on video state
   useEffect(() => {
@@ -114,7 +145,7 @@ const CanvasOverlay: React.FC<CanvasOverlayProps> = ({
         // Enable drawing when video is paused
         canvas.isDrawingMode = currentTool === "freehand";
         canvas.selection = false;
-        
+
         // Set up drawing brush
         if (canvas.freeDrawingBrush) {
           canvas.freeDrawingBrush.color = drawingColor;
@@ -214,7 +245,7 @@ const CanvasOverlay: React.FC<CanvasOverlayProps> = ({
         case "circle": {
           const radius = Math.sqrt(
             Math.pow(pointer.x - startPoint.x, 2) +
-            Math.pow(pointer.y - startPoint.y, 2)
+              Math.pow(pointer.y - startPoint.y, 2)
           );
           const circle = new fabric.Circle({
             left: startPoint.x - radius,
@@ -254,7 +285,12 @@ const CanvasOverlay: React.FC<CanvasOverlayProps> = ({
     };
 
     const handleMouseUp = (event: any) => {
-      if (!isDrawing || !isVideoPaused || currentTool === "freehand" || !startPoint)
+      if (
+        !isDrawing ||
+        !isVideoPaused ||
+        currentTool === "freehand" ||
+        !startPoint
+      )
         return;
 
       setIsDrawing(false);
@@ -286,7 +322,7 @@ const CanvasOverlay: React.FC<CanvasOverlayProps> = ({
         case "circle": {
           const radius = Math.sqrt(
             Math.pow(pointer.x - startPoint.x, 2) +
-            Math.pow(pointer.y - startPoint.y, 2)
+              Math.pow(pointer.y - startPoint.y, 2)
           );
           drawingAction = {
             id: `drawing_${Date.now()}_${Math.random()}`,
@@ -510,7 +546,7 @@ const CanvasOverlay: React.FC<CanvasOverlayProps> = ({
           position: "absolute",
           top: 0,
           left: 0,
-          zIndex: 20, /* Lower than drawing tools (60) */
+          zIndex: 20 /* Lower than drawing tools (60) */,
           cursor: isVideoPaused ? "crosshair" : "default",
           pointerEvents: isVideoPaused ? "auto" : "none",
         }}
@@ -572,12 +608,8 @@ const CanvasOverlay: React.FC<CanvasOverlayProps> = ({
 
       {/* Canvas Status */}
       <div className="canvas-status">
-        <div>
-          Status: {isVideoPaused ? `✏️ Drawing Mode` : "▶️ Playing"}
-        </div>
-        {isVideoPaused && (
-          <div>Tool: {currentTool}</div>
-        )}
+        <div>Status: {isVideoPaused ? `✏️ Drawing Mode` : "▶️ Playing"}</div>
+        {isVideoPaused && <div>Tool: {currentTool}</div>}
         {currentDrawings.length > 0 && (
           <div>Drawings: {currentDrawings.length}</div>
         )}

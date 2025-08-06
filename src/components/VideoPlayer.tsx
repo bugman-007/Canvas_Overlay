@@ -35,7 +35,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       setVideoFile(file);
       const url = URL.createObjectURL(file);
       setVideoUrl(url);
-    } else {
+      
+      // Reset playback state
+      setIsPlaying(false);
+      setCurrentTime(0);
+    } else if (file) {
       alert('Please select a valid video file');
     }
   };
@@ -45,6 +49,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     const video = videoRef.current;
     if (video) {
       setDuration(video.duration);
+      video.pause(); // Start paused for drawing
+      setIsPlaying(false);
       onVideoLoad?.(video);
     }
   };
@@ -99,6 +105,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   // Format time for display
   const formatTime = (time: number): string => {
+    if (isNaN(time) || !isFinite(time)) return '0:00';
     const minutes = Math.floor(time / 60);
     const seconds = Math.floor(time % 60);
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
@@ -126,30 +133,38 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           id="video-file-input"
         />
         <label htmlFor="video-file-input" className="file-input-label btn">
-          Choose Video File
+          📁 Choose Video
         </label>
         {videoFile && (
           <span className="file-name">{videoFile.name}</span>
         )}
       </div>
 
-      {/* Video Element */}
-      {videoUrl && (
-        <div className="video-container">
-          <video
-            ref={videoRef}
-            src={videoUrl}
-            onLoadedMetadata={handleLoadedMetadata}
-            onTimeUpdate={handleTimeUpdate}
-            onPlay={handlePlay}
-            onPause={handlePause}
-            className="video-player"
-            preload="metadata"
-          />
-        </div>
-      )}
+      {/* Video Container */}
+      <div className="video-container">
+        {videoUrl ? (
+          <>
+            <video
+              ref={videoRef}
+              src={videoUrl}
+              onLoadedMetadata={handleLoadedMetadata}
+              onTimeUpdate={handleTimeUpdate}
+              onPlay={handlePlay}
+              onPause={handlePause}
+              className="video-player"
+              preload="metadata"
+            />
+            {/* Canvas overlay will be added here by parent component */}
+          </>
+        ) : (
+          <div className="no-video-message">
+            <h3>No video loaded</h3>
+            <p>Please select a video file to begin editing</p>
+          </div>
+        )}
+      </div>
 
-      {/* Video Controls */}
+      {/* Video Controls - Only show when video is loaded */}
       {videoUrl && (
         <div className="video-controls">
           <div className="control-row">
@@ -161,47 +176,37 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
               {isPlaying ? '⏸️ Pause' : '▶️ Play'}
             </button>
             
-            <div className="time-display">
+            <span className="time-display">
               {formatTime(currentTime)} / {formatTime(duration)}
-            </div>
-          </div>
-
-          <div className="control-row">
-            <label>Seek:</label>
+            </span>
+            
             <input
               type="range"
               min="0"
               max={duration || 0}
               value={currentTime}
               onChange={handleSeek}
+              step="0.1"
               className="seek-slider"
               disabled={!videoUrl}
             />
-          </div>
-
-          <div className="control-row">
-            <label>Volume:</label>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.1"
-              value={volume}
-              onChange={handleVolumeChange}
-              className="volume-slider"
-            />
-            <span>{Math.round(volume * 100)}%</span>
+            
+            <div className="volume-control">
+              <span>🔊</span>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.1"
+                value={volume}
+                onChange={handleVolumeChange}
+                className="volume-slider"
+              />
+              <span className="volume-label">{Math.round(volume * 100)}%</span>
+            </div>
           </div>
         </div>
       )}
-
-      {/* Debug Info */}
-      <div className="debug-info">
-        <p>Status: {videoFile ? `Loaded: ${videoFile.name}` : 'No video loaded'}</p>
-        <p>Playing: {isPlaying ? 'Yes' : 'No'}</p>
-        <p>Current Time: {formatTime(currentTime)}</p>
-        <p>Duration: {formatTime(duration)}</p>
-      </div>
     </div>
   );
 };

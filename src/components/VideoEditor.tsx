@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-// import React, { useState, useRef } from 'react';
 import VideoPlayer from './VideoPlayer';
 import CanvasOverlay from './CanvasOverlay';
 import type { DrawingAction } from '../types/video';
@@ -10,8 +9,6 @@ const VideoEditor: React.FC = () => {
   const [currentDrawings, setCurrentDrawings] = useState<DrawingAction[]>([]);
   const [allDrawings, setAllDrawings] = useState<DrawingAction[]>([]);
   const [showDebug, setShowDebug] = useState(false);
-  
-  // const videoContainerRef = useRef<HTMLDivElement>(null);
 
   const handleVideoLoad = (video: HTMLVideoElement) => {
     console.log('Video loaded:', {
@@ -20,6 +17,7 @@ const VideoEditor: React.FC = () => {
       videoHeight: video.videoHeight
     });
     setVideoElement(video);
+    setIsVideoPaused(true); // Start paused for drawing
   };
 
   const handleTimeUpdate = (currentTime: number, duration: number) => {
@@ -28,10 +26,15 @@ const VideoEditor: React.FC = () => {
       const visibleDrawings = allDrawings.filter(
         drawing => drawing.timestamp <= currentTime
       );
-      console.log(duration);
       setCurrentDrawings(visibleDrawings);
     } else {
+      // Clear drawings while playing
       setCurrentDrawings([]);
+    }
+    
+    // Keep duration for reference if needed
+    if (duration) {
+      // Can use duration for timeline features later
     }
   };
 
@@ -70,62 +73,86 @@ const VideoEditor: React.FC = () => {
     console.log('All drawings cleared');
   };
 
+  const exportVideo = () => {
+    // Placeholder for export functionality
+    console.log('Export video with drawings:', {
+      videoElement,
+      drawings: allDrawings
+    });
+    alert('Export feature will be implemented in the next version');
+  };
+
   return (
     <div className="video-editor">
-      {/* Video Player with file input and main video area */}
-      <VideoPlayer
-        onVideoLoad={handleVideoLoad}
-        onTimeUpdate={handleTimeUpdate}
-        onPlay={handlePlay}
-        onPause={handlePause}
-      />
-
-      {/* Canvas Overlay - Only show when video is loaded */}
-      {videoElement && (
-        <CanvasOverlay
-          videoElement={videoElement}
-          isVideoPaused={isVideoPaused}
-          onDrawingComplete={handleDrawingComplete}
-          currentDrawings={currentDrawings}
+      {/* Video Player with controls */}
+      <div style={{ position: 'relative', height: '100%', display: 'flex', flexDirection: 'column' }}>
+        <VideoPlayer
+          onVideoLoad={handleVideoLoad}
+          onTimeUpdate={handleTimeUpdate}
+          onPlay={handlePlay}
+          onPause={handlePause}
         />
-      )}
 
-      {/* Drawing Management - Top right panel */}
+        {/* Canvas Overlay - Positioned absolutely within the relative container */}
+        {videoElement && (
+          <CanvasOverlay
+            videoElement={videoElement}
+            isVideoPaused={isVideoPaused}
+            onDrawingComplete={handleDrawingComplete}
+            currentDrawings={currentDrawings}
+          />
+        )}
+      </div>
+
+      {/* Drawing Management Panel */}
       {videoElement && (
         <div className="drawing-management">
           <div className="drawing-stats">
-            <p>Drawings: {allDrawings.length}</p>
+            <p>Total: {allDrawings.length} drawings</p>
             <p>Visible: {currentDrawings.length}</p>
             <p>Time: {videoElement.currentTime.toFixed(1)}s</p>
+            <p>Mode: {isVideoPaused ? 'Draw' : 'Play'}</p>
           </div>
           
           {allDrawings.length > 0 && (
-            <button onClick={clearAllDrawings} className="clear-all-btn">
-              Clear All
-            </button>
+            <>
+              <button onClick={clearAllDrawings} className="clear-all-btn">
+                🗑️ Clear All
+              </button>
+              <button onClick={exportVideo} className="btn" style={{ width: '100%', marginTop: '5px' }}>
+                💾 Export Video
+              </button>
+            </>
           )}
           
           <button 
             onClick={() => setShowDebug(!showDebug)} 
             className="btn"
-            style={{ marginTop: '10px', fontSize: '11px', padding: '4px 8px' }}
+            style={{ 
+              marginTop: '10px', 
+              fontSize: '11px', 
+              padding: '4px 8px',
+              width: '100%',
+              backgroundColor: showDebug ? '#28a745' : '#6c757d'
+            }}
           >
-            {showDebug ? 'Hide Debug' : 'Show Debug'}
+            {showDebug ? '🔍 Hide Debug' : '🔍 Show Debug'}
           </button>
         </div>
       )}
 
-      {/* Debug Info - Only show when enabled */}
-      {videoElement && showDebug && (
-        <div className="debug-info show">
+      {/* Debug Info Panel */}
+      {videoElement && (
+        <div className={`debug-info ${showDebug ? 'show' : ''}`}>
           <h4>Debug Info</h4>
-          <p>Status: {isVideoPaused ? 'Paused' : 'Playing'}</p>
+          <p>Status: {isVideoPaused ? '⏸️ Paused' : '▶️ Playing'}</p>
           <p>Time: {videoElement.currentTime.toFixed(2)}s / {videoElement.duration.toFixed(2)}s</p>
-          <p>Video: {videoElement.videoWidth}×{videoElement.videoHeight}</p>
-          <p>Display: {Math.round(videoElement.getBoundingClientRect().width)}×{Math.round(videoElement.getBoundingClientRect().height)}</p>
-          <p>Total Drawings: {allDrawings.length}</p>
-          <p>Visible: {currentDrawings.length}</p>
-          <p>Interactive: {isVideoPaused ? 'Yes' : 'No'}</p>
+          <p>Video: {videoElement.videoWidth}×{videoElement.videoHeight}px</p>
+          <p>Display: {Math.round(videoElement.getBoundingClientRect().width)}×{Math.round(videoElement.getBoundingClientRect().height)}px</p>
+          <p>Drawings Total: {allDrawings.length}</p>
+          <p>Drawings Visible: {currentDrawings.length}</p>
+          <p>Canvas Active: {isVideoPaused ? 'Yes' : 'No'}</p>
+          <p>Ready to Draw: {isVideoPaused ? '✅' : '❌'}</p>
         </div>
       )}
     </div>

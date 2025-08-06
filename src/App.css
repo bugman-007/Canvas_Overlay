@@ -1,8 +1,12 @@
-/* src/App.css - Clean redesigned video editor interface */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+}
+
+body {
+  overflow: hidden;
+  background-color: #1a1a1a;
 }
 
 .App {
@@ -11,7 +15,7 @@
   flex-direction: column;
   background-color: #1a1a1a;
   color: white;
-  overflow: hidden; /* No scroll */
+  overflow: hidden;
 }
 
 .App-header {
@@ -32,6 +36,7 @@ main {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-height: 0; /* Important for flex children */
 }
 
 .video-editor {
@@ -39,30 +44,29 @@ main {
   display: flex;
   flex-direction: column;
   background-color: #1a1a1a;
+  position: relative;
 }
 
-/* Main Video Area - Takes most of the space */
-.video-main-area {
+/* Video Player Container - Contains all video-related elements */
+.video-player-container {
   flex: 1;
   display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 20px;
-  background-color: #0a0a0a;
+  flex-direction: column;
+  min-height: 0; /* Allow proper flex sizing */
   position: relative;
-  min-height: 0; /* Allow flex shrinking */
 }
 
-/* File Input Section - Compact */
+/* File Input Section */
 .file-input-section {
   position: absolute;
   top: 20px;
   left: 20px;
-  background: rgba(0, 0, 0, 0.8);
+  background: rgba(0, 0, 0, 0.9);
   padding: 15px;
   border-radius: 8px;
   border: 1px solid #444;
-  z-index: 30;
+  z-index: 50;
+  backdrop-filter: blur(10px);
 }
 
 .file-input {
@@ -90,50 +94,64 @@ main {
   margin-top: 8px;
   font-size: 12px;
   display: block;
+  word-break: break-all;
 }
 
-/* Video Container - Centered and large */
+/* Video Container - Center video in available space */
 .video-container {
-  position: relative;
+  flex: 1;
   display: flex;
   justify-content: center;
   align-items: center;
-  max-width: 90%;
-  max-height: 90%;
+  padding: 80px 20px 120px 20px; /* Space for controls and tools */
+  min-height: 0;
+  position: relative; /* Important: Make this the positioning context for canvas */
 }
 
 .video-player {
   max-width: 100%;
   max-height: 100%;
+  width: auto;
+  height: auto;
   border-radius: 8px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  display: block;
 }
 
-/* Canvas Overlay - Exactly matches video */
-.canvas-overlay {
+/* Canvas Overlay Container */
+.canvas-overlay-container {
   position: absolute;
   top: 0;
   left: 0;
-  border-radius: 8px;
-  pointer-events: none;
+  width: 100%;
+  height: 100%;
+  pointer-events: none; /* Allow clicks to pass through to elements below */
+  z-index: 15; /* Above video but below tools */
 }
 
-/* Drawing Tools - Positioned at bottom of screen */
+/* Canvas Overlay - Positioned over video */
+.canvas-overlay {
+  position: absolute !important;
+  border-radius: 8px;
+}
+
+/* Drawing Tools - Fixed at bottom, above video controls */
 .drawing-tools {
   position: fixed;
-  bottom: 80px;
+  bottom: 90px;
   left: 50%;
   transform: translateX(-50%);
   background: rgba(30, 30, 30, 0.95);
-  padding: 15px 20px;
+  padding: 12px 20px;
   border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
-  gap: 20px;
-  z-index: 25;
+  gap: 15px;
+  z-index: 60; /* Higher than canvas and other elements */
   border: 1px solid #555;
   backdrop-filter: blur(10px);
+  pointer-events: auto; /* Ensure it can receive clicks */
 }
 
 .tool-group {
@@ -157,6 +175,7 @@ main {
   color: white;
   font-size: 14px;
   min-width: 120px;
+  cursor: pointer;
 }
 
 .tool-select:focus {
@@ -167,7 +186,7 @@ main {
 .color-picker {
   width: 40px;
   height: 30px;
-  border: none;
+  border: 1px solid #555;
   border-radius: 4px;
   cursor: pointer;
   background: none;
@@ -176,6 +195,7 @@ main {
 .width-slider {
   width: 80px;
   margin-right: 8px;
+  cursor: pointer;
 }
 
 .clear-btn {
@@ -193,23 +213,23 @@ main {
   background-color: #c82333;
 }
 
-/* Canvas Status - Top left of video */
+/* Canvas Status */
 .canvas-status {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  background: rgba(0, 0, 0, 0.8);
+  position: fixed;
+  top: 190px;
+  left: 20px;
+  background: rgba(0, 0, 0, 0.9);
   color: white;
   padding: 8px 12px;
   border-radius: 6px;
   font-size: 12px;
   font-family: monospace;
-  z-index: 20;
-  line-height: 1.4;
-  backdrop-filter: blur(5px);
+  z-index: 45;
+  backdrop-filter: blur(10px);
+  border: 1px solid #444;
 }
 
-/* Video Controls - Bottom bar */
+/* Video Controls - Fixed at bottom */
 .video-controls {
   position: fixed;
   bottom: 0;
@@ -218,7 +238,7 @@ main {
   background: rgba(20, 20, 20, 0.95);
   padding: 15px 20px;
   border-top: 1px solid #444;
-  z-index: 30;
+  z-index: 50;
   backdrop-filter: blur(10px);
 }
 
@@ -227,7 +247,7 @@ main {
   align-items: center;
   gap: 15px;
   justify-content: center;
-  max-width: 1000px;
+  max-width: 800px;
   margin: 0 auto;
 }
 
@@ -243,37 +263,52 @@ main {
   transition: background-color 0.2s;
 }
 
-.play-pause-btn:hover {
+.play-pause-btn:hover:not(:disabled) {
   background-color: #0056b3;
+}
+
+.play-pause-btn:disabled {
+  background-color: #666;
+  cursor: not-allowed;
 }
 
 .time-display {
   font-family: monospace;
   font-size: 14px;
   color: #ccc;
-  min-width: 60px;
+  min-width: 100px;
   text-align: center;
 }
 
 .seek-slider {
   flex: 1;
   max-width: 400px;
-  margin: 0 15px;
   height: 6px;
   border-radius: 3px;
   background: #444;
   outline: none;
   cursor: pointer;
   appearance: none;
+  -webkit-appearance: none;
 }
 
 .seek-slider::-webkit-slider-thumb {
   appearance: none;
+  -webkit-appearance: none;
   width: 16px;
   height: 16px;
   border-radius: 50%;
   background: #007bff;
   cursor: pointer;
+}
+
+.seek-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #007bff;
+  cursor: pointer;
+  border: none;
 }
 
 .volume-control {
@@ -290,15 +325,26 @@ main {
   outline: none;
   cursor: pointer;
   appearance: none;
+  -webkit-appearance: none;
 }
 
 .volume-slider::-webkit-slider-thumb {
   appearance: none;
+  -webkit-appearance: none;
   width: 12px;
   height: 12px;
   border-radius: 50%;
   background: #007bff;
   cursor: pointer;
+}
+
+.volume-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #007bff;
+  cursor: pointer;
+  border: none;
 }
 
 .volume-label {
@@ -308,18 +354,18 @@ main {
   text-align: right;
 }
 
-/* Drawing Management - Compact side panel */
+/* Drawing Management Panel */
 .drawing-management {
-  position: absolute;
-  top: 20px;
+  position: fixed;
+  top: 80px;
   right: 20px;
-  background: rgba(30, 30, 30, 0.9);
+  background: rgba(30, 30, 30, 0.95);
   padding: 15px;
   border-radius: 8px;
   border: 1px solid #555;
   backdrop-filter: blur(10px);
-  z-index: 25;
-  min-width: 200px;
+  z-index: 45;
+  min-width: 180px;
 }
 
 .drawing-stats {
@@ -343,17 +389,19 @@ main {
   font-size: 12px;
   width: 100%;
   margin-bottom: 5px;
+  transition: background-color 0.2s;
 }
 
 .clear-all-btn:hover {
   background-color: #c82333;
 }
 
-/* Loading state */
+/* No video message */
 .no-video-message {
   text-align: center;
   color: #666;
   font-size: 18px;
+  padding: 40px;
 }
 
 .no-video-message h3 {
@@ -361,38 +409,39 @@ main {
   margin-bottom: 10px;
 }
 
-/* Debug Info - Hidden by default */
+/* Debug Info */
 .debug-info {
-  display: none;
-}
-
-.debug-info.show {
-  display: block;
-  position: absolute;
-  bottom: 20px;
+  position: fixed;
+  bottom: 100px;
   left: 20px;
-  background: rgba(0, 0, 0, 0.8);
+  background: rgba(0, 0, 0, 0.9);
   padding: 10px;
   border-radius: 6px;
   font-family: monospace;
   font-size: 11px;
   color: #ccc;
   max-width: 300px;
-  z-index: 20;
+  z-index: 45;
+  border: 1px solid #444;
+  display: none;
 }
 
-.debug-info.show h4 {
+.debug-info.show {
+  display: block;
+}
+
+.debug-info h4 {
   margin-bottom: 5px;
   font-family: sans-serif;
   font-size: 12px;
   color: #fff;
 }
 
-.debug-info.show p {
+.debug-info p {
   margin: 2px 0;
 }
 
-/* Button Styles */
+/* Button Base Styles */
 .btn {
   padding: 8px 16px;
   border: none;
@@ -414,328 +463,63 @@ main {
 }
 
 /* Responsive Design */
-@media (max-width: 1200px) {
+@media (max-width: 768px) {
+  .App-header h1 {
+    font-size: 1.2rem;
+  }
+
+  .video-container {
+    padding: 60px 10px 140px 10px;
+  }
+
+  .canvas-overlay-container {
+    padding: 60px 10px 140px 10px;
+  }
+
   .drawing-tools {
-    bottom: 100px;
+    bottom: 110px;
     flex-wrap: wrap;
     max-width: 90%;
-  }
-  
-  .drawing-management {
-    position: static;
-    margin: 10px auto;
-    max-width: 300px;
-  }
-}
-
-@media (max-width: 768px) {
-  .video-main-area {
+    gap: 10px;
     padding: 10px;
   }
-  
-  .drawing-tools {
-    bottom: 120px;
-    flex-direction: column;
-    gap: 10px;
-    padding: 12px;
+
+  .tool-group {
+    flex: 1 1 auto;
+    min-width: 120px;
   }
-  
+
+  .drawing-management {
+    top: auto;
+    bottom: 180px;
+    right: 10px;
+    left: 10px;
+    max-width: 200px;
+  }
+
   .file-input-section {
-    position: static;
-    margin-bottom: 15px;
-    background: rgba(30, 30, 30, 0.9);
-    text-align: center;
+    top: 10px;
+    left: 10px;
+    padding: 10px;
   }
-  
+
+  .canvas-status {
+    top: 190px;
+    font-size: 11px;
+  }
+
   .control-row {
     flex-wrap: wrap;
     gap: 10px;
   }
-  
+
   .seek-slider {
-    max-width: 200px;
+    width: 100%;
+    max-width: none;
   }
-}
-  /* background-color: white;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-} */
 
-.control-row {
-  display: flex;
-  align-items: center;
-  margin: 10px 0;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.play-pause-btn {
-  min-width: 100px;
-}
-
-.time-display {
-  font-family: monospace;
-  font-size: 14px;
-  color: #666;
-  min-width: 100px;
-}
-
-.seek-slider, .volume-slider {
-  flex: 1;
-  min-width: 100px;
-}
-
-.seek-slider {
-  margin: 0 10px;
-}
-
-.volume-slider {
-  max-width: 150px;
-}
-
-/* Debug Info */
-.debug-info {
-  margin: 20px 0;
-  padding: 15px;
-  background-color: #f0f0f0;
-  border-radius: 8px;
-  text-align: left;
-  font-family: monospace;
-  font-size: 12px;
-}
-
-.debug-info h4 {
-  margin-top: 0;
-  font-family: sans-serif;
-}
-
-.debug-info p {
-  margin: 5px 0;
-}
-
-/* Button Styles */
-.btn {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 5px;
-  background-color: #007bff;
-  color: white;
-  cursor: pointer;
-  font-size: 14px;
-  transition: background-color 0.2s;
-}
-
-.btn:hover:not(:disabled) {
-  background-color: #0056b3;
-}
-
-.btn:disabled {
-  background-color: #ccc;
-  cursor: not-allowed;
-}
-  /* background-color: white;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-} */
-
-.control-row {
-  display: flex;
-  align-items: center;
-  margin: 10px 0;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.play-pause-btn {
-  min-width: 100px;
-}
-
-.time-display {
-  font-family: monospace;
-  font-size: 14px;
-  color: #666;
-  min-width: 100px;
-}
-
-.seek-slider, .volume-slider {
-  flex: 1;
-  min-width: 100px;
-}
-
-.seek-slider {
-  margin: 0 10px;
-}
-
-.volume-slider {
-  max-width: 150px;
-}
-
-/* Debug Info */
-.debug-info {
-  margin: 20px 0;
-  padding: 15px;
-  background-color: #f0f0f0;
-  border-radius: 8px;
-  text-align: left;
-  font-family: monospace;
-  font-size: 12px;
-}
-
-.debug-info h4 {
-  margin-top: 0;
-  font-family: sans-serif;
-}
-
-.debug-info p {
-  margin: 5px 0;
-}
-
-/* Button Styles */
-.btn {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 5px;
-  background-color: #007bff;
-  color: white;
-  cursor: pointer;
-  font-size: 14px;
-  transition: background-color 0.2s;
-}
-
-.btn:hover:not(:disabled) {
-  background-color: #0056b3;
-}
-
-.btn:disabled {
-  background-color: #ccc;
-  cursor: not-allowed;
-}
-  /* margin: 20px 0;
-} */
-
-.file-input-section {
-  margin: 20px 0;
-  padding: 20px;
-  border: 2px dashed #ccc;
-  border-radius: 8px;
-  background-color: #fafafa;
-}
-
-.file-input {
-  display: none;
-}
-
-.file-input-label {
-  display: inline-block;
-  cursor: pointer;
-  margin-right: 10px;
-}
-
-.file-name {
-  color: #666;
-  font-style: italic;
-}
-
-.video-container {
-  position: relative;
-  display: inline-block;
-  margin: 20px 0;
-  max-width: 100%;
-}
-
-.video-player {
-  max-width: 100%;
-  height: auto;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-}
-
-.video-controls {
-  margin: 20px 0;
-  padding: 15px;
-  background-color: white;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-}
-
-.control-row {
-  display: flex;
-  align-items: center;
-  margin: 10px 0;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.play-pause-btn {
-  min-width: 100px;
-}
-
-.time-display {
-  font-family: monospace;
-  font-size: 14px;
-  color: #666;
-  min-width: 100px;
-}
-
-.seek-slider, .volume-slider {
-  flex: 1;
-  min-width: 100px;
-}
-
-.seek-slider {
-  margin: 0 10px;
-}
-
-.volume-slider {
-  max-width: 150px;
-}
-
-.debug-info {
-  margin: 20px 0;
-  padding: 15px;
-  background-color: #f0f0f0;
-  border-radius: 8px;
-  text-align: left;
-  font-family: monospace;
-  font-size: 12px;
-}
-
-.debug-info p {
-  margin: 5px 0;
-}
-
-/* Placeholder styles for future components */
-.canvas-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  pointer-events: none;
-}
-
-.controls {
-  margin: 20px 0;
-  display: flex;
-  gap: 10px;
-  justify-content: center;
-  flex-wrap: wrap;
-}
-
-.btn {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 5px;
-  background-color: #007bff;
-  color: white;
-  cursor: pointer;
-  font-size: 14px;
-  transition: background-color 0.2s;
-}
-
-.btn:hover:not(:disabled) {
-  background-color: #0056b3;
-}
-
-.btn:disabled {
-  background-color: #ccc;
-  cursor: not-allowed;
+  .debug-info {
+    bottom: 180px;
+    font-size: 10px;
+  }
 }

@@ -1,9 +1,7 @@
-// src/components/CanvasOverlay.tsx - Fixed version
 import React, { useRef, useEffect, useState } from "react";
 import * as fabric from "fabric";
 import type {
   DrawingAction,
-  // DrawingData,
   FreehandData,
   ArrowData,
   CircleData,
@@ -25,6 +23,7 @@ const CanvasOverlay: React.FC<CanvasOverlayProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fabricCanvasRef = useRef<fabric.Canvas | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const [canvasDimensions, setCanvasDimensions] = useState({
     width: 800,
@@ -39,6 +38,7 @@ const CanvasOverlay: React.FC<CanvasOverlayProps> = ({
   const [startPoint, setStartPoint] = useState<{ x: number; y: number } | null>(
     null
   );
+  const [tempShape, setTempShape] = useState<fabric.Object | null>(null);
 
   // Initialize Fabric.js canvas
   useEffect(() => {
@@ -49,7 +49,7 @@ const CanvasOverlay: React.FC<CanvasOverlayProps> = ({
       });
 
       fabricCanvasRef.current = canvas;
-
+      
       // Set initial dimensions
       canvas.setDimensions(canvasDimensions);
 
@@ -58,34 +58,49 @@ const CanvasOverlay: React.FC<CanvasOverlayProps> = ({
         fabricCanvasRef.current = null;
       };
     }
-  }, [canvasDimensions]);
+  }, []);
 
-  // Update canvas dimensions when video dimensions change
+  // Update canvas dimensions and position to match video
   useEffect(() => {
-    if (videoElement && fabricCanvasRef.current) {
-      const updateDimensions = () => {
+    if (videoElement && fabricCanvasRef.current && containerRef.current) {
+      const updateCanvasPosition = () => {
         const videoRect = videoElement.getBoundingClientRect();
-        const newDimensions = {
-          width: videoElement.videoWidth || videoRect.width,
-          height: videoElement.videoHeight || videoRect.height,
-        };
+        const canvas = fabricCanvasRef.current;
+        
+        if (!canvas || videoRect.width === 0 || videoRect.height === 0) return;
 
-        if (newDimensions.width > 0 && newDimensions.height > 0) {
-          setCanvasDimensions(newDimensions);
-          fabricCanvasRef.current?.setDimensions(newDimensions);
+        // Set canvas dimensions to match video display size
+        setCanvasDimensions({
+          width: videoRect.width,
+          height: videoRect.height,
+        });
+
+        canvas.setDimensions({
+          width: videoRect.width,
+          height: videoRect.height,
+        });
+
+        // Position canvas exactly over video
+        if (canvasRef.current) {
+          canvasRef.current.style.position = 'absolute';
+          canvasRef.current.style.left = `${videoRect.left}px`;
+          canvasRef.current.style.top = `${videoRect.top - videoElement.parentElement!.getBoundingClientRect().top}px`;
         }
       };
 
-      // Update dimensions when video metadata loads
-      videoElement.addEventListener("loadedmetadata", updateDimensions);
-      videoElement.addEventListener("resize", updateDimensions);
+      // Update on various events
+      updateCanvasPosition();
+      videoElement.addEventListener("loadedmetadata", updateCanvasPosition);
+      window.addEventListener("resize", updateCanvasPosition);
 
-      // Initial update
-      updateDimensions();
+      // Use ResizeObserver if available
+      const resizeObserver = new ResizeObserver(updateCanvasPosition);
+      resizeObserver.observe(videoElement);
 
       return () => {
-        videoElement.removeEventListener("loadedmetadata", updateDimensions);
-        videoElement.removeEventListener("resize", updateDimensions);
+        videoElement.removeEventListener("loadedmetadata", updateCanvasPosition);
+        window.removeEventListener("resize", updateCanvasPosition);
+        resizeObserver.disconnect();
       };
     }
   }, [videoElement]);
@@ -99,12 +114,8 @@ const CanvasOverlay: React.FC<CanvasOverlayProps> = ({
         // Enable drawing when video is paused
         canvas.isDrawingMode = currentTool === "freehand";
         canvas.selection = false;
-        canvas.forEachObject((obj) => {
-          obj.selectable = false;
-          obj.evented = false;
-        });
-
-        // Set up drawing parameters
+        
+        // Set up drawing brush
         if (canvas.freeDrawingBrush) {
           canvas.freeDrawingBrush.color = drawingColor;
           canvas.freeDrawingBrush.width = strokeWidth;
@@ -113,10 +124,6 @@ const CanvasOverlay: React.FC<CanvasOverlayProps> = ({
         // Disable interaction when video is playing
         canvas.isDrawingMode = false;
         canvas.selection = false;
-        canvas.forEachObject((obj) => {
-          obj.selectable = false;
-          obj.evented = false;
-        });
       }
     }
   }, [isVideoPaused, currentTool, drawingColor, strokeWidth]);
@@ -129,14 +136,9 @@ const CanvasOverlay: React.FC<CanvasOverlayProps> = ({
     const handlePathCreated = (event: any) => {
       if (currentTool === "freehand" && event.path) {
         const path = event.path;
-
-        // Get path data
-        // const pathString = path.path?.join(" ") || "";
-
-        // Convert to points (simplified - just get some key points)
         const points: { x: number; y: number }[] = [];
 
-        // Extract coordinates from path (simplified approach)
+        // Extract coordinates from path
         try {
           const pathArray = path.path || [];
           for (let i = 0; i < pathArray.length; i++) {
@@ -144,17 +146,14 @@ const CanvasOverlay: React.FC<CanvasOverlayProps> = ({
             if (Array.isArray(segment) && segment.length >= 3) {
               if (segment[0] === "M" || segment[0] === "L") {
                 points.push({ x: segment[1], y: segment[2] });
+              } else if (segment[0] === "Q" && segment.length >= 5) {
+                // Quadratic curve - add end point
+                points.push({ x: segment[3], y: segment[4] });
               }
             }
           }
         } catch (error) {
           console.warn("Path parsing error:", error);
-          // Fallback: use path bounds
-          const bounds = path.getBoundingRect();
-          points.push(
-            { x: bounds.left, y: bounds.top },
-            { x: bounds.left + bounds.width, y: bounds.top + bounds.height }
-          );
         }
 
         if (points.length > 0) {
@@ -178,19 +177,94 @@ const CanvasOverlay: React.FC<CanvasOverlayProps> = ({
       setIsDrawing(true);
       const pointer = canvas.getPointer(event.e);
       setStartPoint(pointer);
+
+      // Remove any temporary shape
+      if (tempShape) {
+        canvas.remove(tempShape);
+        setTempShape(null);
+      }
+    };
+
+    const handleMouseMove = (event: any) => {
+      if (!isDrawing || !startPoint || currentTool === "freehand") return;
+
+      const pointer = canvas.getPointer(event.e);
+
+      // Remove previous temp shape
+      if (tempShape) {
+        canvas.remove(tempShape);
+      }
+
+      let newShape: fabric.Object | null = null;
+
+      switch (currentTool) {
+        case "arrow": {
+          const line = new fabric.Line(
+            [startPoint.x, startPoint.y, pointer.x, pointer.y],
+            {
+              stroke: drawingColor,
+              strokeWidth: strokeWidth,
+              selectable: false,
+              evented: false,
+            }
+          );
+          newShape = line;
+          break;
+        }
+        case "circle": {
+          const radius = Math.sqrt(
+            Math.pow(pointer.x - startPoint.x, 2) +
+            Math.pow(pointer.y - startPoint.y, 2)
+          );
+          const circle = new fabric.Circle({
+            left: startPoint.x - radius,
+            top: startPoint.y - radius,
+            radius: radius,
+            stroke: drawingColor,
+            strokeWidth: strokeWidth,
+            fill: "",
+            selectable: false,
+            evented: false,
+          });
+          newShape = circle;
+          break;
+        }
+        case "rectangle": {
+          const rect = new fabric.Rect({
+            left: Math.min(startPoint.x, pointer.x),
+            top: Math.min(startPoint.y, pointer.y),
+            width: Math.abs(pointer.x - startPoint.x),
+            height: Math.abs(pointer.y - startPoint.y),
+            stroke: drawingColor,
+            strokeWidth: strokeWidth,
+            fill: "",
+            selectable: false,
+            evented: false,
+          });
+          newShape = rect;
+          break;
+        }
+      }
+
+      if (newShape) {
+        canvas.add(newShape);
+        setTempShape(newShape);
+        canvas.renderAll();
+      }
     };
 
     const handleMouseUp = (event: any) => {
-      if (
-        !isDrawing ||
-        !isVideoPaused ||
-        currentTool === "freehand" ||
-        !startPoint
-      )
+      if (!isDrawing || !isVideoPaused || currentTool === "freehand" || !startPoint)
         return;
 
       setIsDrawing(false);
       const pointer = canvas.getPointer(event.e);
+
+      // Remove temp shape
+      if (tempShape) {
+        canvas.remove(tempShape);
+        setTempShape(null);
+      }
 
       let drawingAction: DrawingAction | null = null;
 
@@ -209,10 +283,10 @@ const CanvasOverlay: React.FC<CanvasOverlayProps> = ({
           };
           break;
 
-        case "circle":{
+        case "circle": {
           const radius = Math.sqrt(
             Math.pow(pointer.x - startPoint.x, 2) +
-              Math.pow(pointer.y - startPoint.y, 2)
+            Math.pow(pointer.y - startPoint.y, 2)
           );
           drawingAction = {
             id: `drawing_${Date.now()}_${Math.random()}`,
@@ -225,7 +299,8 @@ const CanvasOverlay: React.FC<CanvasOverlayProps> = ({
             color: drawingColor,
             strokeWidth: strokeWidth,
           };
-          break;}
+          break;
+        }
 
         case "rectangle":
           drawingAction = {
@@ -256,11 +331,13 @@ const CanvasOverlay: React.FC<CanvasOverlayProps> = ({
     // Add event listeners
     canvas.on("path:created", handlePathCreated);
     canvas.on("mouse:down", handleMouseDown);
+    canvas.on("mouse:move", handleMouseMove);
     canvas.on("mouse:up", handleMouseUp);
 
     return () => {
       canvas.off("path:created", handlePathCreated);
       canvas.off("mouse:down", handleMouseDown);
+      canvas.off("mouse:move", handleMouseMove);
       canvas.off("mouse:up", handleMouseUp);
     };
   }, [
@@ -272,6 +349,7 @@ const CanvasOverlay: React.FC<CanvasOverlayProps> = ({
     onDrawingComplete,
     isDrawing,
     startPoint,
+    tempShape,
   ]);
 
   // Render current drawings on canvas
@@ -279,15 +357,20 @@ const CanvasOverlay: React.FC<CanvasOverlayProps> = ({
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
 
-    // Clear existing drawings
-    canvas.clear();
+    // Clear existing drawings (except temp shape)
+    const objects = canvas.getObjects();
+    objects.forEach((obj) => {
+      if (obj !== tempShape) {
+        canvas.remove(obj);
+      }
+    });
 
     // Render all current drawings
     currentDrawings.forEach((drawing) => {
       let fabricObject: fabric.Object | null = null;
 
       switch (drawing.type) {
-        case "freehand":{
+        case "freehand": {
           const freehandData = drawing.data as FreehandData;
           if (freehandData.points.length > 1) {
             const pathString = freehandData.points.reduce(
@@ -310,9 +393,10 @@ const CanvasOverlay: React.FC<CanvasOverlayProps> = ({
               evented: false,
             });
           }
-          break;}
+          break;
+        }
 
-        case "arrow":{
+        case "arrow": {
           const arrowData = drawing.data as ArrowData;
 
           // Create line
@@ -360,9 +444,10 @@ const CanvasOverlay: React.FC<CanvasOverlayProps> = ({
 
           canvas.add(line);
           canvas.add(arrowHead);
-          break;}
+          break;
+        }
 
-        case "circle":{
+        case "circle": {
           const circleData = drawing.data as CircleData;
           fabricObject = new fabric.Circle({
             left: circleData.center.x - circleData.radius,
@@ -374,10 +459,10 @@ const CanvasOverlay: React.FC<CanvasOverlayProps> = ({
             selectable: false,
             evented: false,
           });
-          break;}
+          break;
+        }
 
-        case "rectangle":
-          {
+        case "rectangle": {
           const rectData = drawing.data as RectangleData;
           fabricObject = new fabric.Rect({
             left: rectData.topLeft.x,
@@ -400,15 +485,21 @@ const CanvasOverlay: React.FC<CanvasOverlayProps> = ({
     });
 
     canvas.renderAll();
-  }, [currentDrawings, drawingColor, strokeWidth]);
+  }, [currentDrawings, drawingColor, strokeWidth, tempShape]);
 
-  // Clear all drawings
+  // Clear canvas function
   const clearCanvas = () => {
-    fabricCanvasRef.current?.clear();
+    const canvas = fabricCanvasRef.current;
+    if (canvas) {
+      canvas.clear();
+      if (tempShape) {
+        setTempShape(null);
+      }
+    }
   };
 
   return (
-    <div className="canvas-overlay-container">
+    <div className="canvas-overlay-container" ref={containerRef}>
       {/* Canvas positioned over video */}
       <canvas
         ref={canvasRef}
@@ -419,13 +510,13 @@ const CanvasOverlay: React.FC<CanvasOverlayProps> = ({
           position: "absolute",
           top: 0,
           left: 0,
-          zIndex: isVideoPaused ? 10 : 1,
+          zIndex: 20, /* Lower than drawing tools (60) */
           cursor: isVideoPaused ? "crosshair" : "default",
           pointerEvents: isVideoPaused ? "auto" : "none",
         }}
       />
 
-      {/* Drawing Tools - Only show when video is paused */}
+      {/* Drawing Tools - Show when video is paused */}
       {isVideoPaused && (
         <div className="drawing-tools">
           <div className="tool-group">
@@ -474,15 +565,22 @@ const CanvasOverlay: React.FC<CanvasOverlayProps> = ({
           </div>
 
           <button onClick={clearCanvas} className="btn clear-btn">
-            🗑️ Clear
+            🗑️ Clear Canvas
           </button>
         </div>
       )}
 
-      {/* Status indicator */}
+      {/* Canvas Status */}
       <div className="canvas-status">
-        Status: {isVideoPaused ? `Drawing (${currentTool})` : "Video Playing"}
-        {currentDrawings.length > 0 && ` | ${currentDrawings.length} drawings`}
+        <div>
+          Status: {isVideoPaused ? `✏️ Drawing Mode` : "▶️ Playing"}
+        </div>
+        {isVideoPaused && (
+          <div>Tool: {currentTool}</div>
+        )}
+        {currentDrawings.length > 0 && (
+          <div>Drawings: {currentDrawings.length}</div>
+        )}
       </div>
     </div>
   );

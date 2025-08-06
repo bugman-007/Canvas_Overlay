@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect } from 'react';
 
 interface VideoPlayerProps {
   onVideoLoad?: (video: HTMLVideoElement) => void;
@@ -11,13 +11,13 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   onVideoLoad,
   onTimeUpdate,
   onPlay,
-  onPause,
+  onPause
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
+  
   const [videoFile, setVideoFile] = useState<File | null>(null);
-  const [videoUrl, setVideoUrl] = useState<string>("");
+  const [videoUrl, setVideoUrl] = useState<string>('');
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -26,17 +26,17 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   // Handle file selection
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file && file.type.startsWith("video/")) {
+    if (file && file.type.startsWith('video/')) {
       // Clean up previous URL
       if (videoUrl) {
         URL.revokeObjectURL(videoUrl);
       }
-
+      
       setVideoFile(file);
       const url = URL.createObjectURL(file);
       setVideoUrl(url);
     } else {
-      alert("Please select a valid video file");
+      alert('Please select a valid video file');
     }
   };
 
@@ -101,7 +101,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const formatTime = (time: number): string => {
     const minutes = Math.floor(time / 60);
     const seconds = Math.floor(time % 60);
-    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
   // Cleanup on unmount
@@ -128,7 +128,9 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         <label htmlFor="video-file-input" className="file-input-label btn">
           Choose Video File
         </label>
-        {videoFile && <span className="file-name">{videoFile.name}</span>}
+        {videoFile && (
+          <span className="file-name">{videoFile.name}</span>
+        )}
       </div>
 
       {/* Video Element */}
@@ -151,14 +153,14 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       {videoUrl && (
         <div className="video-controls">
           <div className="control-row">
-            <button
-              onClick={togglePlayPause}
+            <button 
+              onClick={togglePlayPause} 
               className="btn play-pause-btn"
               disabled={!videoUrl}
             >
-              {isPlaying ? "⏸️ Pause" : "▶️ Play"}
+              {isPlaying ? '⏸️ Pause' : '▶️ Play'}
             </button>
-
+            
             <div className="time-display">
               {formatTime(currentTime)} / {formatTime(duration)}
             </div>
@@ -195,10 +197,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
       {/* Debug Info */}
       <div className="debug-info">
-        <p>
-          Status: {videoFile ? `Loaded: ${videoFile.name}` : "No video loaded"}
-        </p>
-        <p>Playing: {isPlaying ? "Yes" : "No"}</p>
+        <p>Status: {videoFile ? `Loaded: ${videoFile.name}` : 'No video loaded'}</p>
+        <p>Playing: {isPlaying ? 'Yes' : 'No'}</p>
         <p>Current Time: {formatTime(currentTime)}</p>
         <p>Duration: {formatTime(duration)}</p>
       </div>

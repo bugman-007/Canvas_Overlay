@@ -1,3 +1,4 @@
+// src/components/CanvasOverlay.tsx - Fixed version
 import React, { useRef, useEffect, useState } from "react";
 import * as fabric from "fabric";
 import type {
@@ -208,7 +209,7 @@ const CanvasOverlay: React.FC<CanvasOverlayProps> = ({
           };
           break;
 
-        case "circle": {
+        case "circle":{
           const radius = Math.sqrt(
             Math.pow(pointer.x - startPoint.x, 2) +
               Math.pow(pointer.y - startPoint.y, 2)
@@ -224,8 +225,7 @@ const CanvasOverlay: React.FC<CanvasOverlayProps> = ({
             color: drawingColor,
             strokeWidth: strokeWidth,
           };
-          break;
-        }
+          break;}
 
         case "rectangle":
           drawingAction = {
@@ -287,7 +287,7 @@ const CanvasOverlay: React.FC<CanvasOverlayProps> = ({
       let fabricObject: fabric.Object | null = null;
 
       switch (drawing.type) {
-        case "freehand": {
+        case "freehand":{
           const freehandData = drawing.data as FreehandData;
           if (freehandData.points.length > 1) {
             const pathString = freehandData.points.reduce(
@@ -310,10 +310,9 @@ const CanvasOverlay: React.FC<CanvasOverlayProps> = ({
               evented: false,
             });
           }
-          break;
-        }
+          break;}
 
-        case "arrow": {
+        case "arrow":{
           const arrowData = drawing.data as ArrowData;
 
           // Create line
@@ -361,10 +360,9 @@ const CanvasOverlay: React.FC<CanvasOverlayProps> = ({
 
           canvas.add(line);
           canvas.add(arrowHead);
-          break;
-        }
+          break;}
 
-        case "circle": {
+        case "circle":{
           const circleData = drawing.data as CircleData;
           fabricObject = new fabric.Circle({
             left: circleData.center.x - circleData.radius,
@@ -376,9 +374,10 @@ const CanvasOverlay: React.FC<CanvasOverlayProps> = ({
             selectable: false,
             evented: false,
           });
-          break;
-        }
-        case "rectangle": {
+          break;}
+
+        case "rectangle":
+          {
           const rectData = drawing.data as RectangleData;
           fabricObject = new fabric.Rect({
             left: rectData.topLeft.x,
